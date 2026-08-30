@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OAC Fire Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@600;700&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: rgba(16, 23, 32, 0.75);
+      --panel-border: rgba(248, 113, 113, 0.3);
+      --panel-glow: rgba(248, 113, 113, 0.08);
+      --input-bg: rgba(22, 31, 44, 0.9);
+
+      --accent: #f87171;
+      --accent-bright: #fca5a5;
+      --accent-glow: rgba(248, 113, 113, 0.35);
+      --accent-dark: #dc2626;
+
+      --orange: #fb923c;
+      --orange-glow: rgba(251, 146, 60, 0.25);
+      --green: #4ade80;
+      --green-glow: rgba(74, 222, 128, 0.25);
+      --red: #f87171;
+      --red-glow: rgba(248, 113, 113, 0.25);
+
+      --text: #e2e8f0;
+      --text-muted: #64748b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+      padding-bottom: 60px;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Ambient Background FX */
+    #particle-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Subtle Scanline effect */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(rgba(11, 15, 20, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
+      background-size: 100% 4px;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .top-header {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      background: rgba(15, 21, 29, 0.85);
+      border-bottom: 1px solid var(--panel-border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+      margin-bottom: 32px;
+    }
+
+    .top-header h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: #fff;
+      text-shadow: 0 0 15px var(--accent-glow);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .top-header h1::before {
+      content: "◈";
+      color: var(--accent);
+      font-size: 22px;
+      text-shadow: 0 0 12px var(--accent);
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--accent);
+      background: rgba(248, 113, 113, 0.05);
+      border: 1px solid var(--panel-border);
+      padding: 8px 18px;
+      border-radius: 20px;
+      box-shadow: 0 0 15px var(--panel-glow);
+      animation: borderPulse 3s infinite alternate;
+    }
+
+    @keyframes borderPulse {
+      0% { border-color: rgba(248, 113, 113, 0.2); box-shadow: 0 0 10px rgba(248, 113, 113, 0.1); }
+      100% { border-color: rgba(248, 113, 113, 0.5); box-shadow: 0 0 20px rgba(248, 113, 113, 0.25); }
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; transform: scale(0.85); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 24px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+      animation: cardSpawn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes cardSpawn {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: -100%; width: 100%; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: sweepLine 5s infinite linear;
+    }
+
+    @keyframes sweepLine {
+      0% { left: -100%; }
+      100% { left: 100%; }
+    }
+
+    .card:hover {
+      border-color: rgba(248, 113, 113, 0.6);
+      box-shadow: 0 12px 35px var(--panel-glow);
+    }
+
+    .card-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #fff;
+      text-transform: uppercase;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+    }
+
+    .field input {
+      height: 44px;
+      background: var(--input-bg);
+      border: 1px solid rgba(248, 113, 113, 0.25);
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      transition: all 0.25s ease;
+    }
+
+    .field input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 14px var(--accent-glow);
+      background: rgba(38, 24, 28, 0.95);
+      transform: translateY(-1px);
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+      color: #0b0f14;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 0 15px var(--panel-glow);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 0 25px var(--accent-glow);
+      background: linear-gradient(135deg, var(--accent), var(--accent-bright));
+    }
+
+    .btn-delete {
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.25);
+      color: var(--red);
+      width: 30px; height: 30px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-delete:hover {
+      background: var(--red);
+      color: #0b0f14;
+      box-shadow: 0 0 14px var(--red-glow);
+      transform: rotate(90deg);
+    }
+
+    .badge-bar {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .badge-box {
+      background: rgba(12, 17, 24, 0.8);
+      border: 1px solid rgba(248, 113, 113, 0.2);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: all 0.3s ease;
+    }
+
+    .badge-box:hover {
+      border-color: rgba(248, 113, 113, 0.5);
+      box-shadow: inset 0 0 12px rgba(248, 113, 113, 0.12);
+    }
+
+    .badge-box .lbl { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+    .badge-box .val { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--accent-bright); text-shadow: 0 0 6px var(--accent-glow); }
+
+    .status-msg {
+      margin-top: 16px;
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(12, 17, 24, 0.85);
+      border-left: 4px solid var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.3s;
+    }
+
+    .status-msg.ok { border-color: var(--green); color: var(--green); box-shadow: inset 0 0 15px rgba(74, 222, 128, 0.05); }
+    .status-msg.approx { border-color: var(--orange); color: var(--orange); box-shadow: inset 0 0 15px rgba(251, 146, 60, 0.05); }
+    .status-msg.no { border-color: var(--red); color: var(--red); box-shadow: inset 0 0 15px rgba(248, 113, 113, 0.08); }
+    .status-msg.searching { border-color: var(--accent); color: var(--accent); }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(248, 113, 113, 0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .table-wrapper {
+      margin-top: 10px;
+      background: rgba(12, 17, 24, 0.85);
+      border: 1px solid rgba(248, 113, 113, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+    th { color: var(--text-muted); font-size: 10px; text-transform: uppercase; padding: 8px; text-align: right; border-bottom: 1px solid rgba(248, 113, 113, 0.2); }
+    th:first-child, td:first-child { text-align: left; }
+    td { padding: 8px; text-align: right; border-bottom: 1px solid rgba(255, 255, 255, 0.03); transition: background 0.2s; }
+    tr:hover td { background: rgba(248, 113, 113, 0.06); }
+
+    /* Enhanced Dropdown Accordion Styles with Spring Animation */
+    .dropdown-btn {
+      width: 100%;
+      margin-top: 16px;
+      background: rgba(12, 17, 24, 0.9);
+      border: 1px solid var(--panel-border);
+      color: var(--accent-bright);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .dropdown-btn:hover {
+      border-color: var(--accent);
+      background: rgba(248, 113, 113, 0.12);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .dropdown-arrow {
+      transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      font-size: 10px;
+    }
+
+    .dropdown-btn.active .dropdown-arrow {
+      transform: rotate(180deg) scale(1.2);
+    }
+
+    .stats-dropdown-content {
+      display: grid;
+      grid-template-rows: 0fr;
+      margin-top: 0;
+      opacity: 0;
+      background: rgba(12, 17, 24, 0.95);
+      border: 1px solid transparent;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      transition: grid-template-rows 0.4s cubic-bezier(0.16, 1, 0.3, 1), 
+                  opacity 0.3s ease, 
+                  margin-top 0.4s ease, 
+                  border-color 0.4s ease,
+                  padding 0.4s ease;
+      overflow: hidden;
+      padding: 0 16px;
+    }
+
+    .stats-dropdown-inner {
+      min-height: 0;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      transform: translateY(-10px);
+    }
+
+    .stats-dropdown-content.open {
+      grid-template-rows: 1fr;
+      opacity: 1;
+      margin-top: 10px;
+      padding: 16px;
+      border-color: rgba(248, 113, 113, 0.3);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(248, 113, 113, 0.05);
+    }
+
+    .stats-dropdown-content.open .stats-dropdown-inner {
+      transform: translateY(0);
+    }
+
+    .stats-group {
+      margin-bottom: 12px;
+    }
+
+    .stats-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .stats-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+    }
+
+    .stats-row .label { color: var(--text-muted); }
+    .stats-row .value { color: #fff; font-weight: 700; }
+
+    @media (max-width: 650px) {
+      .grid-3, .grid-2, .badge-bar { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="particle-canvas"></canvas>
+
+<div class="top-header">
+  <h1>OAC FIRE CONTROL</h1>
+  <div class="status-badge"><div class="status-dot"></div>SYSTEM ONLINE</div>
+</div>
+
+<div class="container">
+
+  <!-- Cannon Config -->
+  <div class="card">
+    <div class="card-title">Cannon Origin & Global Parameters</div>
+
+    <div class="grid-3" style="margin-bottom: 16px;">
+      <div class="field"><label>Origin X</label><input type="number" id="originX" value="12" step="any"></div>
+      <div class="field"><label>Origin Y</label><input type="number" id="originY" value="89" step="any"></div>
+      <div class="field"><label>Origin Z</label><input type="number" id="originZ" value="-7" step="any"></div>
+    </div>
+
+    <div class="badge-box" style="margin-bottom: 16px;">
+      <span class="lbl">Nether Position (Origin ÷ 8)</span>
+      <span class="val" id="nether-origin-display">Nether Pos: 1.5, -0.875</span>
+    </div>
+
+    <div class="field">
+      <label>Tolerance Limit (Blocks)</label>
+      <input type="number" id="tolerance" value="0.1" min="0.001" step="0.005">
+    </div>
+  </div>
+
+  <!-- Target List Header -->
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <div class="card-title" style="margin:0;">🎯 Targets</div>
+    <button class="btn" id="add-target-btn">+ Add Target</button>
+  </div>
+
+  <div id="targets-container" style="display: flex; flex-direction: column; gap: 20px;"></div>
+
+</div>
+
+<script>
+// Ambient Canvas Particle Engine (Red Accent Theme)
+const canvas = document.getElementById('particle-canvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+class Particle {
+  constructor() { this.reset(); }
+  reset() {
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 1.5 + 0.5;
+    this.speedY = -Math.random() * 0.3 - 0.1;
+    this.opacity = Math.random() * 0.3 + 0.05;
+  }
+  update() {
+    this.y += this.speedY;
+    if (this.y < 0) this.reset();
+  }
+  draw() {
+    ctx.fillStyle = `rgba(248, 113, 113, ${this.opacity})`;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+for (let i = 0; i < 50; i++) particles.push(new Particle());
+
+function animateParticles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles.forEach(p => { p.update(); p.draw(); });
+  requestAnimationFrame(animateParticles);
+}
+animateParticles();
+
+// Cannon Engine Logic
+let targetCounter = 0;
+
+const arrowVectors = [
+  { name: '-X', x: -3.20668635, z: 1.2412979 },
+  { name: '+X', x: 2.85274069, z: 0.17972056 },
+  { name: '+Z', x: -0.003037, z: 1.341967237 },
+  { name: '-Z', x: 0.39696987, z: -1.1545534907 }
+];
+
+const tntVectors = [
+  { name: '-X', x: -2.86621309, z: -0.00686107 },
+  { name: '+X', x: 3.3443067544, z: -1.04197127 },
+  { name: '+Z', x: -0.2943733187, z: 0.9261101366 },
+  { name: '-Z', x: 0.00686107, z: -2.86621307 }
+];
+
+const fmt = (v, p = 3) => Number(v || 0).toFixed(p);
+
+function updateNetherOrigin() {
+  const ox = parseFloat(document.getElementById('originX').value) || 0;
+  const oy = parseFloat(document.getElementById('originY').value) || 0;
+  const oz = parseFloat(document.getElementById('originZ').value) || 0;
+
+  // Apply Overworld portal offsets (-5 on X, +13 on Y, 0 on Z)
+  const portalX = ox - 5;
+  const portalY = oy + 13;
+  const portalZ = oz;
+
+  // Divide horizontal portal coordinates by 8 and floor to get Nether position
+  const netherX = Math.floor(portalX / 8);
+  const netherY = Math.round(portalY);
+  const netherZ = Math.floor(portalZ / 8);
+
+  document.getElementById('nether-origin-display').textContent = `Nether Pos: ${netherX}, ${netherY}, ${netherZ}`;
+}
+
+function formatItemCount(counterVal) {
+  if (counterVal <= 0) return '0 items';
+  const stacks = Math.floor(counterVal / 64);
+  const items = counterVal % 64;
+  if (stacks === 0) return `${items} items`;
+  if (items === 0) return `${stacks} stack${stacks > 1 ? 's' : ''}`;
+  return `${stacks}stacks + ${items}items`;
+}
+
+function solveMix(vectors, wanted, acceptedError, allowedAxes) {
+  let bestAccepted = null;
+  let bestFallback = null;
+
+  const consider = counts => {
+    if (counts.some(n => n < 0)) return;
+    const actual = vectors.reduce((sum, v, i) => ({ x: sum.x + v.x * counts[i], z: sum.z + v.z * counts[i] }), { x: 0, z: 0 });
+    const error = Math.hypot(actual.x - wanted.x, actual.z - wanted.z);
+    const total = counts.reduce((sum, n) => sum + n, 0);
+    const candidate = { counts, actual, error, total };
+    if (error <= acceptedError && (!bestAccepted || total < bestAccepted.total || (total === bestAccepted.total && error < bestAccepted.error))) bestAccepted = candidate;
+    if (!bestFallback || error < bestFallback.error - 1e-9 || (Math.abs(error - bestFallback.error) < 1e-9 && total < bestFallback.total)) bestFallback = candidate;
+  };
+
+  const solvePair = (first, second, goal) => {
+    const p = vectors[first], q = vectors[second];
+    const det = p.x * q.z - p.z * q.x;
+    if (Math.abs(det) < 1e-9) return null;
+    return { a: (goal.x * q.z - goal.z * q.x) / det, b: (p.x * goal.z - p.z * goal.x) / det };
+  };
+
+  const primaryOffsets = Array.from({ length: 65 }, (_, i) => i - 32);
+
+  for (let left = 0; left < allowedAxes.length; left++) {
+    for (let right = left + 1; right < allowedAxes.length; right++) {
+      const first = allowedAxes[left], second = allowedAxes[right];
+      const pair = solvePair(first, second, wanted);
+      if (!pair) continue;
+      const a0 = Math.round(pair.a), b0 = Math.round(pair.b);
+      for (const da of primaryOffsets) {
+        for (const db of primaryOffsets) {
+          const counts = [0, 0, 0, 0];
+          counts[first] = a0 + da;
+          counts[second] = b0 + db;
+          consider(counts);
+        }
+      }
+    }
+  }
+
+  return bestAccepted || bestFallback || { counts: [0,0,0,0], actual: {x:0, z:0}, error: Infinity, total: 0 };
+}
+
+function axesFor(v) {
+  const axes = [];
+  if (Math.abs(v.x) > 1e-9) axes.push(v.x > 0 ? 1 : 0);
+  if (Math.abs(v.z) > 1e-9) axes.push(v.z > 0 ? 2 : 3);
+  return axes.length ? axes : [0, 1, 2, 3];
+}
+
+function evaluateSolution(tx, tz, ox, oz, tolerance) {
+  const initialArrowOffset = { x: 0.26, y: 0.48, z: 0.26 };
+  const initialTntOffset = { x: 0.500, y: 0.0, z: 0.5000001 };
+
+  const arrowAim = { x: tx, z: tz };
+  const arrowDistance = { x: arrowAim.x - (ox + initialArrowOffset.x), z: arrowAim.z - (oz + initialArrowOffset.z) };
+  const arrowAxes = axesFor(arrowDistance);
+  const arrow = solveMix(arrowVectors, arrowDistance, tolerance, arrowAxes);
+
+  const predicted = { x: ox + initialArrowOffset.x + (arrow?.actual?.x || 0), z: oz + initialArrowOffset.z + (arrow?.actual?.z || 0) };
+  const neededTntMotion = { x: predicted.x - (ox + initialTntOffset.x), z: predicted.z - (oz + initialTntOffset.z) };
+  const stop = solveMix(tntVectors, neededTntMotion, tolerance, arrowAxes);
+  const predictedTnt = { x: ox + initialTntOffset.x + (stop?.actual?.x || 0), z: oz + initialTntOffset.z + (stop?.actual?.z || 0) };
+
+  const centerOffset = { x: predicted.x - predictedTnt.x, z: predicted.z - predictedTnt.z };
+  const centerError = Math.hypot(centerOffset.x, centerOffset.z);
+
+  return {
+    arrowAim, arrow, predicted, stop, predictedTnt, centerError,
+    isWithinTolerance: centerError <= tolerance
+  };
+}
+
+function findNearestValidTargetAsync(initialX, initialZ, ox, oz, tolerance, signal, onComplete) {
+  let best = null;
+  let minDistance = Infinity;
+  let r = 0.05;
+
+  function step() {
+    if (signal.aborted) return;
+
+    const startTime = performance.now();
+
+    while (r <= 35) {
+      const steps = Math.max(12, Math.floor(2 * Math.PI * r * 4));
+      for (let i = 0; i < steps; i++) {
+        const angle = (2 * Math.PI * i) / steps;
+        const testX = initialX + r * Math.cos(angle);
+        const testZ = initialZ + r * Math.sin(angle);
+
+        const evalRes = evaluateSolution(testX, testZ, ox, oz, tolerance);
+        if (evalRes.isWithinTolerance) {
+          const dist = Math.hypot(testX - initialX, testZ - initialZ);
+          if (dist < minDistance) {
+            minDistance = dist;
+            best = { ...evalRes, targetX: testX, targetZ: testZ };
+          }
+        }
+      }
+
+      r += 0.25;
+
+      if (best) {
+        onComplete(best);
+        return;
+      }
+
+      if (performance.now() - startTime > 8) {
+        setTimeout(step, 0);
+        return;
+      }
+    }
+
+    onComplete(best);
+  }
+
+  step();
+}
+
+function getAdjustedCounts(vectors, counts, isTnt, deltaX) {
+  const safeCounts = counts || [0, 0, 0, 0];
+  const isPlusXActive = safeCounts[1] > 0;
+  const isPlusZActive = safeCounts[2] > 0;
+  const applyExtraZBatches = !isTnt && isPlusXActive && isPlusZActive;
+  const extraZBatches = applyExtraZBatches ? Math.floor(Math.max(0, deltaX) / 400) : 0;
+
+  return vectors.map((v, i) => {
+    let b = safeCounts[i] || 0;
+    if (v.name === '+Z' && applyExtraZBatches) b += extraZBatches;
+    return b;
+  });
+}
+
+function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, deltaX = 0) {
+  const safeCounts = counts || [0, 0, 0, 0];
+  const isPlusXActive = safeCounts[1] > 0;
+  const isPlusZActive = safeCounts[2] > 0;
+  const applyExtraZBatches = !isTnt && isPlusXActive && isPlusZActive;
+  const extraZBatches = applyExtraZBatches ? Math.floor(Math.max(0, deltaX) / 400) : 0;
+
+  const rows = vectors.map((v, i) => {
+    let batches = safeCounts[i] || 0;
+
+    if (v.name === '+Z' && applyExtraZBatches) {
+      batches += extraZBatches;
+    }
+
+    const totalTnt = batches * 10;
+
+    let sub = 2;
+    if (isTnt && (v.name === '+Z' || v.name === '-Z')) {
+      sub = 1;
+    }
+
+    const counterVal = batches <= 0 ? 0 : Math.max(0, batches - sub);
+
+    return `<tr>
+      <td>${v.name}</td>
+      <td>${batches}${v.name === '+Z' && extraZBatches > 0 ? ` <span style="color:var(--orange); font-size:10px;">(+${extraZBatches})</span>` : ''}</td>
+      <td>${totalTnt}</td>
+      <td>${batches === 0 ? '—' : counterVal}</td>
+      <td style="color:var(--accent-bright);">${formatItemCount(counterVal)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<table>
+    <thead><tr><th>Dir</th><th>Batch</th><th>TNT</th><th>Cnt</th><th>Items</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function formatFormattedTime(totalSec) {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  const mStr = String(m).padStart(2, '0');
+  const sStr = s.toFixed(1).padStart(4, '0');
+  return `${mStr}:${sStr}`;
+}
+
+function toggleDropdown(id) {
+  const btn = document.getElementById(`dropdown-btn-${id}`);
+  const content = document.getElementById(`dropdown-content-${id}`);
+  btn.classList.toggle('active');
+  content.classList.toggle('open');
+}
+
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+function addTargetCard(defaultTx = 100, defaultTy = 89, defaultTz = 100) {
+  targetCounter++;
+  const id = targetCounter;
+  const container = document.getElementById('targets-container');
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = `target-card-${id}`;
+
+  card.innerHTML = `
+    <div class="card-title">
+      <span>Target Coordinates #${id}</span>
+      <button class="btn-delete" title="Remove Target" onclick="removeTargetCard(${id})">✕</button>
+    </div>
+
+    <div class="grid-3">
+      <div class="field"><label>Target X</label><input type="number" class="t-x" value="${defaultTx}" step="any"></div>
+      <div class="field"><label>Target Y</label><input type="number" class="t-y" value="${defaultTy}" step="any"></div>
+      <div class="field"><label>Target Z</label><input type="number" class="t-z" value="${defaultTz}" step="any"></div>
+    </div>
+
+    <div class="badge-bar">
+      <div class="badge-box"><span class="lbl">Actual Target</span><span class="val actual-target-xyz">100, 89, 100</span></div>
+      <div class="badge-box"><span class="lbl">Center Error</span><span class="val center-error">0.000</span></div>
+    </div>
+
+    <div class="status-msg"></div>
+
+    <button class="dropdown-btn" id="dropdown-btn-${id}" onclick="toggleDropdown(${id})">
+      <span>Show Target Stats</span>
+      <span class="dropdown-arrow">▼</span>
+    </button>
+
+    <div class="stats-dropdown-content" id="dropdown-content-${id}">
+      <div class="stats-dropdown-inner">
+        <div class="stats-group">
+          <div class="stats-title">Predicted Landing</div>
+          <div class="stats-row"><span class="label">Coordinates:</span><span class="value landing-xyz">0, 0, 0</span></div>
+        </div>
+        <div class="stats-group" style="margin-top: 12px;">
+          <div class="stats-title">Time Estimates</div>
+          <div class="stats-row"><span class="label">Payload Building:</span><span class="value">00:01:25</span></div>
+          <div class="stats-row"><span class="label">Acceleration:</span><span class="value accel-time">00:00.0 (0.0s)</span></div>
+          <div class="stats-row" style="border-top: 1px solid rgba(248,113,113,0.3); margin-top: 4px; padding-top: 4px;">
+            <span class="label" style="color:var(--accent-bright);">Total Time:</span>
+            <span class="value total-time" style="color:var(--green);">00:00.0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top: 16px;">
+      <div>
+        <div class="card-title" style="font-size:11px; margin-bottom:6px;">Arrow Acceleration</div>
+        <div class="table-wrapper arrow-table"></div>
+      </div>
+      <div>
+        <div class="card-title" style="font-size:11px; margin-bottom:6px;">TNT Target Setup</div>
+        <div class="table-wrapper tnt-table"></div>
+      </div>
+    </div>
+  `;
+
+  container.appendChild(card);
+
+  const debouncedCompute = debounce(() => computeCard(card), 150);
+  card.querySelectorAll('input').forEach(input => input.addEventListener('input', debouncedCompute));
+
+  computeCard(card);
+}
+
+function removeTargetCard(id) {
+  const card = document.getElementById(`target-card-${id}`);
+  if (card) {
+    if (card.abortController) card.abortController.abort();
+    card.style.animation = 'cardSpawn 0.3s reverse ease-in forwards';
+    setTimeout(() => card.remove(), 300);
+  }
+}
+
+function computeCard(card) {
+  if (card.abortController) {
+    card.abortController.abort();
+  }
+  card.abortController = new AbortController();
+
+  const ox = parseFloat(document.getElementById('originX').value) || 0;
+  const oy = parseFloat(document.getElementById('originY').value) || 0;
+  const oz = parseFloat(document.getElementById('originZ').value) || 0;
+
+  const tolerance = parseFloat(document.getElementById('tolerance').value) || 0.05;
+
+  let reqX = parseFloat(card.querySelector('.t-x').value) || 0;
+  let reqY = parseFloat(card.querySelector('.t-y').value) || 0;
+  let reqZ = parseFloat(card.querySelector('.t-z').value) || 0;
+
+  let res = evaluateSolution(reqX, reqZ, ox, oz, tolerance);
+
+  if (res.isWithinTolerance) {
+    renderResults(card, res, reqX, reqZ, reqY, ox, oy, oz, tolerance, false);
+  } else {
+    const statusEl = card.querySelector('.status-msg');
+    statusEl.className = 'status-msg searching';
+    statusEl.innerHTML = `<div class="spinner"></div><span>Calculating trajectory...</span>`;
+
+    findNearestValidTargetAsync(reqX, reqZ, ox, oz, tolerance, card.abortController.signal, (nearest) => {
+      if (nearest) {
+        renderResults(card, nearest, nearest.targetX, nearest.targetZ, reqY, ox, oy, oz, tolerance, true);
+      } else {
+        renderResults(card, res, reqX, reqZ, reqY, ox, oy, oz, tolerance, false);
+      }
+    });
+  }
+}
+
+function renderResults(card, res, actualX, actualZ, reqY, ox, oy, oz, tolerance, targetAdjusted) {
+  const verticalSame = Math.abs(reqY - oy) < 1e-9;
+  const statusEl = card.querySelector('.status-msg');
+
+  if (res.isWithinTolerance) {
+    statusEl.className = verticalSame ? 'status-msg ok' : 'status-msg approx';
+    let msg = targetAdjusted 
+      ? `OPTIMIZED TRAJECTORY: Shifted target to (X: ${fmt(actualX)}, Z: ${fmt(actualZ)}). `
+      : `SOLUTION FOUND: `;
+    msg += `Margin error ${fmt(res.centerError, 4)} blocks (Tolerance: ${fmt(tolerance)}).`;
+    statusEl.textContent = msg;
+  } else {
+    statusEl.className = 'status-msg no';
+    statusEl.textContent = `OUT OF RANGE: Error ${fmt(res.centerError, 4)} exceeds ${fmt(tolerance)} limit.`;
+  }
+
+  card.querySelector('.actual-target-xyz').textContent = `${fmt(actualX)}, ${fmt(reqY, 2)}, ${fmt(actualZ)}`;
+  card.querySelector('.landing-xyz').textContent = `${fmt(res.predicted.x)}, ${fmt(reqY, 2)}, ${fmt(res.predicted.z)}`;
+  card.querySelector('.center-error').textContent = `${fmt(res.centerError, 4)} blks`;
+
+  // Distance along +X from Cannon Origin
+  const deltaX = actualX - ox;
+
+  card.querySelector('.arrow-table').innerHTML = tableHTML(arrowVectors, res.arrow?.counts, false, deltaX);
+  card.querySelector('.tnt-table').innerHTML = tableHTML(tntVectors, res.stop?.counts, true, deltaX);
+
+  // Time Estimates Calculation
+  const tntAdjCounts = getAdjustedCounts(tntVectors, res.stop?.counts, true, deltaX);
+  const arrowAdjCounts = getAdjustedCounts(arrowVectors, res.arrow?.counts, false, deltaX);
+
+  // Take maximum count for X axes (indices 0, 1) and Z axes (indices 2, 3)
+  const maxX_TNT = Math.max(tntAdjCounts[0] || 0, tntAdjCounts[1] || 0);
+  const maxZ_TNT = Math.max(tntAdjCounts[2] || 0, tntAdjCounts[3] || 0);
+
+  const maxX_Arrow = Math.max(arrowAdjCounts[0] || 0, arrowAdjCounts[1] || 0);
+  const maxZ_Arrow = Math.max(arrowAdjCounts[2] || 0, arrowAdjCounts[3] || 0);
+
+  const maxTNT = Math.max(maxX_TNT, maxZ_TNT);
+  const maxArrow = Math.max(maxX_Arrow, maxZ_Arrow);
+
+  const totalBatches = maxTNT + maxArrow;
+  const accelSeconds = totalBatches * 0.3;
+  const payloadSeconds = 85; // Fixed 00:01:25
+  const totalSeconds = payloadSeconds + accelSeconds;
+
+  card.querySelector('.accel-time').textContent = `${formatFormattedTime(accelSeconds)} (${accelSeconds.toFixed(1)}s)`;
+  card.querySelector('.total-time').textContent = formatFormattedTime(totalSeconds);
+}
+
+const updateAllDebounced = debounce(() => {
+  updateNetherOrigin();
+  document.querySelectorAll('#targets-container .card').forEach(computeCard);
+}, 150);
+
+['originX', 'originY', 'originZ', 'tolerance'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateAllDebounced);
+});
+
+document.getElementById('add-target-btn').addEventListener('click', () => addTargetCard());
+
+// Initial setup
+updateNetherOrigin();
+addTargetCard(100, 89, 100);
+</script>
+
+</body>
+</html>
