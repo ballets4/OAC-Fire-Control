@@ -666,6 +666,17 @@ function axesFor(v) {
   return axes.length ? axes : [0, 1, 2, 3];
 }
 
+function calculateExtraZBatches(arrowCounts, distX, distZ) {
+  const isPlusXOnly = arrowCounts[1] > 0 && arrowCounts[0] === 0;
+  const isPlusZOnly = arrowCounts[2] > 0 && arrowCounts[3] === 0;
+
+  if (isPlusXOnly && isPlusZOnly) {
+    const ratio = distZ > 0 ? distX / distZ : 0;
+    return Math.floor(ratio / 2);
+  }
+  return 0;
+}
+
 function evaluateSolution(tx, tz, ox, oy, oz, tolerance) {
   const initialArrowOffset = { x: 1.26, y: 2.48, z: 0.74 };
   const initialTntOffset = { x: 0, y: 0, z: 0 };
@@ -675,11 +686,8 @@ function evaluateSolution(tx, tz, ox, oy, oz, tolerance) {
   const arrowAxes = axesFor(arrowDistance);
   const arrow = solveMix(arrowVectors, arrowDistance, tolerance, arrowAxes);
 
-  const deltaX = tx - ox;
   const arrowCounts = arrow?.counts || [0, 0, 0, 0];
-  const isPlusXActive = arrowCounts[1] > 0;
-  const isPlusZActive = arrowCounts[2] > 0;
-  const extraZBatches = (isPlusXActive && isPlusZActive) ? Math.floor(Math.max(0, deltaX) / 400) : 0;
+  const extraZBatches = calculateExtraZBatches(arrowCounts, arrowDistance.x, arrowDistance.z);
   const plusZVector = arrowVectors[2];
 
   const correctedArrowActual = {
@@ -779,33 +787,25 @@ function findBestAlignedTargetAsync(initialX, initialZ, ox, oy, oz, tolerance, s
   step();
 }
 
-function getAdjustedCounts(vectors, counts, isTnt, deltaX) {
+function getAdjustedCounts(vectors, counts, isTnt, distX, distZ) {
   const safeCounts = counts || [0, 0, 0, 0];
-  const isPlusXActive = safeCounts[1] > 0;
-  const isPlusZActive = safeCounts[2] > 0;
-  const applyExtraZBatches = !isTnt && isPlusXActive && isPlusZActive;
-  const extraZBatches = applyExtraZBatches ? Math.floor(Math.max(0, deltaX) / 400) : 0;
+  const extraZBatches = isTnt ? 0 : calculateExtraZBatches(safeCounts, distX, distZ);
 
   return vectors.map((v, i) => {
     let b = safeCounts[i] || 0;
-    if (v.name === '+Z' && applyExtraZBatches) b += extraZBatches;
+    if (v.name === '+Z') b += extraZBatches;
     return b;
   });
 }
 
-function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, deltaX = 0) {
+function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, distX = 0, distZ = 0) {
   const safeCounts = counts || [0, 0, 0, 0];
-  const isPlusXActive = safeCounts[1] > 0;
-  const isPlusZActive = safeCounts[2] > 0;
-  const applyExtraZBatches = !isTnt && isPlusXActive && isPlusZActive;
-  const extraZBatches = applyExtraZBatches ? Math.floor(Math.max(0, deltaX) / 400) : 0;
-
-  const isMinusXActive = safeCounts[0] > 0;
+  const extraZBatches = isTnt ? 0 : calculateExtraZBatches(safeCounts, distX, distZ);
 
   const rows = vectors.map((v, i) => {
     let batches = safeCounts[i] || 0;
 
-    if (v.name === '+Z' && applyExtraZBatches) {
+    if (v.name === '+Z') {
       batches += extraZBatches;
     }
 
@@ -829,7 +829,7 @@ function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, deltaX = 0) {
   </table>`;
 }
 
-function tableHTMLTNT2(vectors, counts = [0, 0, 0, 0], deltaX = 0) {
+function tableHTMLTNT2(vectors, counts = [0, 0, 0, 0]) {
   const safeCounts = counts || [0, 0, 0, 0];
 
   const isMinusX = (safeCounts[0] || 0) > 0;
@@ -842,9 +842,8 @@ function tableHTMLTNT2(vectors, counts = [0, 0, 0, 0], deltaX = 0) {
   const rows = vectors.map((v, i) => {
     let batches = safeCounts[i] || 0;
     const totalTnt = batches * 10;
-    const sub = 3;
 
-    let counterVal = batches <= 0 ? 0 : Math.max(0, batches - sub);
+    let counterVal = batches <= 0 ? 0 : Math.max(0, batches - 3);
 
     if (batches > 0) {
       if (v.name === '-X' || v.name === '-Z' || v.name === '+X' || v.name === '+Z') {
@@ -1037,15 +1036,18 @@ function renderResults(card, res, actualX, actualZ, reqY, ox, oy, oz, tolerance,
   card.querySelector('.landing-xyz').textContent = `${fmt(res.predicted.x)}, ${fmt(res.predicted.y, 2)}, ${fmt(res.predicted.z)}`;
   card.querySelector('.center-error').textContent = `${fmt(res.centerError, 4)} blks`;
 
-  const deltaX = actualX - ox;
+  const initialArrowOffsetX = 1.26;
+  const initialArrowOffsetZ = 0.74;
+  const distX = actualX - (ox + initialArrowOffsetX);
+  const distZ = actualZ - (oz + initialArrowOffsetZ);
 
-  card.querySelector('.arrow-table').innerHTML = tableHTML(arrowVectors, res.arrow?.counts, false, deltaX);
-  card.querySelector('.tnt-table').innerHTML = tableHTML(tntVectors, res.stop?.counts, true, deltaX);
-  card.querySelector('.tnt2-table').innerHTML = tableHTMLTNT2(tntVectors, res.stop?.counts, deltaX);
+  card.querySelector('.arrow-table').innerHTML = tableHTML(arrowVectors, res.arrow?.counts, false, distX, distZ);
+  card.querySelector('.tnt-table').innerHTML = tableHTML(tntVectors, res.stop?.counts, true, distX, distZ);
+  card.querySelector('.tnt2-table').innerHTML = tableHTMLTNT2(tntVectors, res.stop?.counts);
 
-  const arrowAdjCounts = getAdjustedCounts(arrowVectors, res.arrow?.counts, false, deltaX);
-  const mainTntAdjCounts = getAdjustedCounts(tntVectors, res.stop?.counts, true, deltaX);
-  const tnt2AdjCounts = getAdjustedCounts(tntVectors, res.stop?.counts, true, deltaX);
+  const arrowAdjCounts = getAdjustedCounts(arrowVectors, res.arrow?.counts, false, distX, distZ);
+  const mainTntAdjCounts = getAdjustedCounts(tntVectors, res.stop?.counts, true, distX, distZ);
+  const tnt2AdjCounts = getAdjustedCounts(tntVectors, res.stop?.counts, true, distX, distZ);
 
   const maxAxisBatches = (counts) => Math.max(
     Math.max(counts[0] || 0, counts[1] || 0),
