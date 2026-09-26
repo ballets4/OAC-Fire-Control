@@ -630,9 +630,12 @@ function calculateExtraZBatches(arrowCounts, distX, distZ) {
 
   if (isPlusXOnly && isPlusZOnly) {
     const diff = distX - distZ;
-    // Only apply extra Z batches if difference is 50 or more
-    if (diff >= 50) {
-      // Scales up continuously with increasing distance difference beyond 50
+    const maxDist = Math.max(distX, distZ);
+
+    // 1. Must be at least a 50 block difference
+    // 2. Must be at least 10% of the total target scale (diff / maxDist >= 0.10)
+    if (diff >= 50 && maxDist > 0 && (diff / maxDist) >= 0.10) {
+      // Scales up continuously with increasing distance difference
       return 1 + Math.floor((diff - 50) / 100);
     }
   }
