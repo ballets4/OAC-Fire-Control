@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@600;700&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0b0f14;
+      --bg: #00060E; /* Updated to match the background image color */
       --panel: rgba(16, 23, 32, 0.75);
       --panel-border: rgba(248, 113, 113, 0.3);
       --panel-glow: rgba(248, 113, 113, 0.08);
@@ -43,25 +43,24 @@
       position: relative;
     }
 
-    /* Ambient Background FX */
-    #particle-canvas {
+    #bg-video {
       position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%); /* Centers the smaller video */
+      width: 70vw;                      /* Reduced size (adjust percentage as needed) */
+      height: 70vh;                     /* Reduced size */
+      object-fit: contain;
       pointer-events: none;
       z-index: 0;
+      opacity: 0.7;
+      filter: brightness(1.1);
+      transition: opacity 0.5s ease, transform 0.5s ease;
     }
 
-    /* Subtle Scanline effect */
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      background: linear-gradient(rgba(11, 15, 20, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
-      background-size: 100% 4px;
-      z-index: 9999;
-      pointer-events: none;
-      opacity: 0.4;
+    #bg-video.hidden {
+      opacity: 0;
+      transform: translate(-50%, -55%) scale(0.95);
     }
 
     .top-header {
@@ -77,6 +76,12 @@
       backdrop-filter: blur(20px);
       box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
       margin-bottom: 32px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
     }
 
     .top-header h1 {
@@ -96,6 +101,61 @@
       color: var(--accent);
       font-size: 22px;
       text-shadow: 0 0 12px var(--accent);
+    }
+
+    /* Panorama Toggle Button Styling & Animations */
+    .btn-panorama {
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid var(--panel-border);
+      color: var(--accent-bright);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      box-shadow: 0 0 10px var(--panel-glow);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      outline: none;
+    }
+
+    .btn-panorama:hover {
+      background: rgba(248, 113, 113, 0.2);
+      border-color: var(--accent);
+      box-shadow: 0 0 18px var(--accent-glow);
+      transform: translateY(-2px);
+    }
+
+    .btn-panorama:active {
+      transform: translateY(0) scale(0.96);
+    }
+
+    .btn-panorama .pano-icon {
+      font-size: 12px;
+      display: inline-block;
+      transition: transform 0.4s ease;
+    }
+
+    .btn-panorama:hover .pano-icon {
+      transform: rotate(180deg);
+    }
+
+    .btn-panorama.off {
+      border-color: rgba(100, 116, 139, 0.4);
+      color: var(--text-muted);
+      background: rgba(100, 116, 139, 0.1);
+      box-shadow: none;
+    }
+
+    .btn-panorama.off:hover {
+      border-color: var(--accent);
+      color: var(--accent-bright);
+      background: rgba(248, 113, 113, 0.15);
     }
 
     .status-badge {
@@ -160,19 +220,6 @@
     @keyframes cardSpawn {
       from { opacity: 0; transform: translateY(20px) scale(0.97); }
       to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    .card::before {
-      content: "";
-      position: absolute;
-      top: 0; left: -100%; width: 100%; height: 2px;
-      background: linear-gradient(90deg, transparent, var(--accent), transparent);
-      animation: sweepLine 5s infinite linear;
-    }
-
-    @keyframes sweepLine {
-      0% { left: -100%; }
-      100% { left: 100%; }
     }
 
     .card:hover {
@@ -273,7 +320,7 @@
 
     .badge-bar {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 14px;
       margin-top: 16px;
     }
@@ -341,7 +388,6 @@
     td { padding: 8px; text-align: right; border-bottom: 1px solid rgba(255, 255, 255, 0.03); transition: background 0.2s; }
     tr:hover td { background: rgba(248, 113, 113, 0.06); }
 
-    /* Enhanced Dropdown Accordion Styles with Spring Animation */
     .dropdown-btn {
       width: 100%;
       margin-top: 16px;
@@ -444,16 +490,22 @@
 
     @media (max-width: 650px) {
       .grid-3, .grid-2, .badge-bar { grid-template-columns: 1fr; }
+      .header-left { flex-direction: column; align-items: flex-start; gap: 8px; }
     }
   </style>
 </head>
 <body>
 
-<canvas id="particle-canvas"></canvas>
+<img id="bg-video" src="https://raw.githubusercontent.com/ballets4/OAC-Fire-Control/main/pan.gif" alt="Background GIF">
 
 <div class="top-header">
+  <div class="header-left">
   <h1>OAC FIRE CONTROL</h1>
-  <div class="status-badge"><div class="status-dot"></div>SYSTEM ONLINE</div>
+  <button class="btn-panorama" id="panorama-toggle-btn" onclick="togglePanorama()">
+    <span class="pano-icon">🌐</span>
+    <span id="pano-btn-text">Panorama: ON</span>
+  </button>
+</div>
 </div>
 
 <div class="container">
@@ -490,64 +542,47 @@
 </div>
 
 <script>
-// Ambient Canvas Particle Engine (Red Accent Theme)
-const canvas = document.getElementById('particle-canvas');
-const ctx = canvas.getContext('2d');
-let particles = [];
 
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+function togglePanorama() {
+  const bgVideo = document.getElementById('bg-video');
+  const btn = document.getElementById('panorama-toggle-btn');
+  const btnText = document.getElementById('pano-btn-text');
 
-class Particle {
-  constructor() { this.reset(); }
-  reset() {
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 1.5 + 0.5;
-    this.speedY = -Math.random() * 0.3 - 0.1;
-    this.opacity = Math.random() * 0.3 + 0.05;
-  }
-  update() {
-    this.y += this.speedY;
-    if (this.y < 0) this.reset();
-  }
-  draw() {
-    ctx.fillStyle = `rgba(248, 113, 113, ${this.opacity})`;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    ctx.fill();
+  bgVideo.classList.toggle('hidden');
+  btn.classList.toggle('off');
+
+  if (bgVideo.classList.contains('hidden')) {
+    btnText.textContent = 'Panorama: OFF';
+  } else {
+    btnText.textContent = 'Panorama: ON';
   }
 }
-
-for (let i = 0; i < 50; i++) particles.push(new Particle());
-
-function animateParticles() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  particles.forEach(p => { p.update(); p.draw(); });
-  requestAnimationFrame(animateParticles);
-}
-animateParticles();
 
 // Cannon Engine Logic
 let targetCounter = 0;
 
 const arrowVectors = [
-  { name: '-X', x: -3.20668635, z: 1.2412979 },
-  { name: '+X', x: 2.85274069, z: 0.17972056 },
-  { name: '+Z', x: -0.003037, z: 1.341967237 },
-  { name: '-Z', x: 0.39696987, z: -1.1545534907 }
+  { name: '-X', x: -1.5266908972025421, y: 0.5898789421934996,  z: -0.010949039264749473 },
+  { name: '+X', x: 1.3391605816807937,  y: 1.2348182634014597,  z: -0.022975617661742748 },
+  { name: '+Z', x: -0.3727794126538941, y: 0.8033298954736217,  z: 1.479730823254127 },
+  { name: '-Z', x: -0.37217873913398825, y: 0.8020451717596928, z: -1.480094766467103 }
 ];
 
-const tntVectors = [
-  { name: '-X', x: -2.86621309, z: -0.00686107 },
-  { name: '+X', x: 3.3443067544, z: -1.04197127 },
-  { name: '+Z', x: -0.2943733187, z: 0.9261101366 },
-  { name: '-Z', x: 0.00686107, z: -2.86621307 }
+const TNT_FIRE_COMPENSATION_X = 0.915539668365994;
+const TNT_FIRE_COMPENSATION_Z = 0.8959942014321007;
+const TNT_FIRE_COMPENSATION_Y = 0.9;
+const tntVectorsBase = [
+  { name: '-X', x: -1.7063921155602588, y: -0.12010562964547475, z: -0.014782262789110306 },
+  { name: '+X', x: 1.7841395235011128, y: -0.17586533218866637, z: -0.02168745622450966 },
+  { name: '+Z', x: -0.017590758321913435, y: -0.1428816252603725, z: 1.745135640926592 },
+  { name: '-Z', x: 0.016548649077465027, y: -0.1428827423749702, z: -1.7447004614574904 }
 ];
+const tntVectors = tntVectorsBase.map(v => ({
+  name: v.name,
+  x: v.x * TNT_FIRE_COMPENSATION_X,
+  y: v.y * TNT_FIRE_COMPENSATION_Y,
+  z: v.z * TNT_FIRE_COMPENSATION_Z
+}));
 
 const fmt = (v, p = 3) => Number(v || 0).toFixed(p);
 
@@ -556,17 +591,16 @@ function updateNetherOrigin() {
   const oy = parseFloat(document.getElementById('originY').value) || 0;
   const oz = parseFloat(document.getElementById('originZ').value) || 0;
 
-  // Apply Overworld portal offsets (-5 on X, +13 on Y, 0 on Z)
-  const portalX = ox - 5;
-  const portalY = oy + 13;
-  const portalZ = oz;
+  const portalX = ox + 1;
+  const portalY = oy;
+  const portalZ = oz + 7;
 
-  // Divide horizontal portal coordinates by 8 and floor to get Nether position
   const netherX = Math.floor(portalX / 8);
-  const netherY = Math.round(portalY);
+  const netherY = Math.floor(portalY / 8);
   const netherZ = Math.floor(portalZ / 8);
 
-  document.getElementById('nether-origin-display').textContent = `Nether Pos: ${netherX}, ${netherY}, ${netherZ}`;
+  document.getElementById('nether-origin-display').textContent = 
+    `Nether Pos: ${netherX}, ${netherY}, ${netherZ}`;
 }
 
 function formatItemCount(counterVal) {
@@ -584,7 +618,11 @@ function solveMix(vectors, wanted, acceptedError, allowedAxes) {
 
   const consider = counts => {
     if (counts.some(n => n < 0)) return;
-    const actual = vectors.reduce((sum, v, i) => ({ x: sum.x + v.x * counts[i], z: sum.z + v.z * counts[i] }), { x: 0, z: 0 });
+    const actual = vectors.reduce((sum, v, i) => ({
+      x: sum.x + v.x * counts[i],
+      y: sum.y + (v.y || 0) * counts[i],
+      z: sum.z + v.z * counts[i]
+    }), { x: 0, y: 0, z: 0 });
     const error = Math.hypot(actual.x - wanted.x, actual.z - wanted.z);
     const total = counts.reduce((sum, n) => sum + n, 0);
     const candidate = { counts, actual, error, total };
@@ -618,7 +656,7 @@ function solveMix(vectors, wanted, acceptedError, allowedAxes) {
     }
   }
 
-  return bestAccepted || bestFallback || { counts: [0,0,0,0], actual: {x:0, z:0}, error: Infinity, total: 0 };
+  return bestAccepted || bestFallback || { counts: [0,0,0,0], actual: {x:0, y:0, z:0}, error: Infinity, total: 0 };
 }
 
 function axesFor(v) {
@@ -628,19 +666,40 @@ function axesFor(v) {
   return axes.length ? axes : [0, 1, 2, 3];
 }
 
-function evaluateSolution(tx, tz, ox, oz, tolerance) {
-  const initialArrowOffset = { x: 0.26, y: 0.48, z: 0.26 };
-  const initialTntOffset = { x: 0.500, y: 0.0, z: 0.5000001 };
+function evaluateSolution(tx, tz, ox, oy, oz, tolerance) {
+  const initialArrowOffset = { x: 1.26, y: 2.48, z: 0.74 };
+  const initialTntOffset = { x: 0, y: 0, z: 0 };
 
   const arrowAim = { x: tx, z: tz };
   const arrowDistance = { x: arrowAim.x - (ox + initialArrowOffset.x), z: arrowAim.z - (oz + initialArrowOffset.z) };
   const arrowAxes = axesFor(arrowDistance);
   const arrow = solveMix(arrowVectors, arrowDistance, tolerance, arrowAxes);
 
-  const predicted = { x: ox + initialArrowOffset.x + (arrow?.actual?.x || 0), z: oz + initialArrowOffset.z + (arrow?.actual?.z || 0) };
+  const deltaX = tx - ox;
+  const arrowCounts = arrow?.counts || [0, 0, 0, 0];
+  const isPlusXActive = arrowCounts[1] > 0;
+  const isPlusZActive = arrowCounts[2] > 0;
+  const extraZBatches = (isPlusXActive && isPlusZActive) ? Math.floor(Math.max(0, deltaX) / 400) : 0;
+  const plusZVector = arrowVectors[2];
+
+  const correctedArrowActual = {
+    x: (arrow?.actual?.x || 0) + extraZBatches * plusZVector.x,
+    y: (arrow?.actual?.y || 0) + extraZBatches * (plusZVector.y || 0),
+    z: (arrow?.actual?.z || 0) + extraZBatches * plusZVector.z
+  };
+
+  const predicted = {
+    x: ox + initialArrowOffset.x + correctedArrowActual.x,
+    y: oy + initialArrowOffset.y + correctedArrowActual.y,
+    z: oz + initialArrowOffset.z + correctedArrowActual.z
+  };
   const neededTntMotion = { x: predicted.x - (ox + initialTntOffset.x), z: predicted.z - (oz + initialTntOffset.z) };
   const stop = solveMix(tntVectors, neededTntMotion, tolerance, arrowAxes);
-  const predictedTnt = { x: ox + initialTntOffset.x + (stop?.actual?.x || 0), z: oz + initialTntOffset.z + (stop?.actual?.z || 0) };
+  const predictedTnt = {
+    x: ox + initialTntOffset.x + (stop?.actual?.x || 0),
+    y: oy + initialTntOffset.y + (stop?.actual?.y || 0),
+    z: oz + initialTntOffset.z + (stop?.actual?.z || 0)
+  };
 
   const centerOffset = { x: predicted.x - predictedTnt.x, z: predicted.z - predictedTnt.z };
   const centerError = Math.hypot(centerOffset.x, centerOffset.z);
@@ -651,10 +710,22 @@ function evaluateSolution(tx, tz, ox, oz, tolerance) {
   };
 }
 
-function findNearestValidTargetAsync(initialX, initialZ, ox, oz, tolerance, signal, onComplete) {
+const PERFECT_ALIGNMENT = 0.0015;
+const EXTRA_RINGS_AFTER_HIT = 8;
+
+function findBestAlignedTargetAsync(initialX, initialZ, ox, oy, oz, tolerance, signal, onComplete) {
   let best = null;
-  let minDistance = Infinity;
-  let r = 0.05;
+  let r = 0;
+  let ringsSinceHit = -1;
+
+  const isBetter = (candidate, current) => {
+    if (!current) return true;
+    if (candidate.centerError < current.centerError - 1e-9) return true;
+    if (Math.abs(candidate.centerError - current.centerError) < 1e-9) {
+      return candidate.distance < current.distance - 1e-9;
+    }
+    return false;
+  };
 
   function step() {
     if (signal.aborted) return;
@@ -662,28 +733,39 @@ function findNearestValidTargetAsync(initialX, initialZ, ox, oz, tolerance, sign
     const startTime = performance.now();
 
     while (r <= 35) {
-      const steps = Math.max(12, Math.floor(2 * Math.PI * r * 4));
+      const steps = r === 0 ? 1 : Math.max(12, Math.floor(2 * Math.PI * r * 4));
       for (let i = 0; i < steps; i++) {
         const angle = (2 * Math.PI * i) / steps;
-        const testX = initialX + r * Math.cos(angle);
-        const testZ = initialZ + r * Math.sin(angle);
+        const testX = r === 0 ? initialX : initialX + r * Math.cos(angle);
+        const testZ = r === 0 ? initialZ : initialZ + r * Math.sin(angle);
 
-        const evalRes = evaluateSolution(testX, testZ, ox, oz, tolerance);
-        if (evalRes.isWithinTolerance) {
-          const dist = Math.hypot(testX - initialX, testZ - initialZ);
-          if (dist < minDistance) {
-            minDistance = dist;
-            best = { ...evalRes, targetX: testX, targetZ: testZ };
-          }
+        const evalRes = evaluateSolution(testX, testZ, ox, oy, oz, tolerance);
+        const candidate = {
+          ...evalRes,
+          targetX: testX,
+          targetZ: testZ,
+          distance: Math.hypot(testX - initialX, testZ - initialZ)
+        };
+
+        if (evalRes.isWithinTolerance && isBetter(candidate, best)) {
+          best = candidate;
+        }
+      }
+
+      if (best && best.centerError <= PERFECT_ALIGNMENT) {
+        onComplete(best);
+        return;
+      }
+
+      if (best) {
+        ringsSinceHit = ringsSinceHit < 0 ? 0 : ringsSinceHit + 1;
+        if (ringsSinceHit >= EXTRA_RINGS_AFTER_HIT) {
+          onComplete(best);
+          return;
         }
       }
 
       r += 0.25;
-
-      if (best) {
-        onComplete(best);
-        return;
-      }
 
       if (performance.now() - startTime > 8) {
         setTimeout(step, 0);
@@ -718,6 +800,8 @@ function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, deltaX = 0) {
   const applyExtraZBatches = !isTnt && isPlusXActive && isPlusZActive;
   const extraZBatches = applyExtraZBatches ? Math.floor(Math.max(0, deltaX) / 400) : 0;
 
+  const isMinusXActive = safeCounts[0] > 0;
+
   const rows = vectors.map((v, i) => {
     let batches = safeCounts[i] || 0;
 
@@ -726,17 +810,60 @@ function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, deltaX = 0) {
     }
 
     const totalTnt = batches * 10;
+    const sub = isTnt ? 3 : 2;
 
-    let sub = 2;
-    if (isTnt && (v.name === '+Z' || v.name === '-Z')) {
-      sub = 1;
-    }
-
-    const counterVal = batches <= 0 ? 0 : Math.max(0, batches - sub);
+    let counterVal = batches <= 0 ? 0 : Math.max(0, batches - sub);
 
     return `<tr>
       <td>${v.name}</td>
       <td>${batches}${v.name === '+Z' && extraZBatches > 0 ? ` <span style="color:var(--orange); font-size:10px;">(+${extraZBatches})</span>` : ''}</td>
+      <td>${totalTnt}</td>
+      <td>${batches === 0 ? '—' : counterVal}</td>
+      <td style="color:var(--accent-bright);">${formatItemCount(counterVal)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<table>
+    <thead><tr><th>Dir</th><th>Batch</th><th>TNT</th><th>Cnt</th><th>Items</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function tableHTMLTNT2(vectors, counts = [0, 0, 0, 0], deltaX = 0) {
+  const safeCounts = counts || [0, 0, 0, 0];
+
+  const isMinusX = (safeCounts[0] || 0) > 0;
+  const isPlusX  = (safeCounts[1] || 0) > 0;
+  const isPlusZ  = (safeCounts[2] || 0) > 0;
+  const isMinusZ = (safeCounts[3] || 0) > 0;
+
+  const isMinusXPlusZOnly = isMinusX && isPlusZ && !isPlusX && !isMinusZ;
+
+  const rows = vectors.map((v, i) => {
+    let batches = safeCounts[i] || 0;
+    const totalTnt = batches * 10;
+    const sub = 3;
+
+    let counterVal = batches <= 0 ? 0 : Math.max(0, batches - sub);
+
+    if (batches > 0) {
+      if (v.name === '-X' || v.name === '-Z' || v.name === '+X' || v.name === '+Z') {
+        counterVal += 1;
+      }
+    }
+    if (batches > 0 && v.name === '-X') {
+      counterVal += 1;
+    }
+
+    if (v.name === '+Z' && isMinusXPlusZOnly) {
+      counterVal -= 1;
+    }
+
+    counterVal = Math.max(0, counterVal);
+
+    return `<tr>
+      <td>${v.name}</td>
+      <td>${batches}</td>
       <td>${totalTnt}</td>
       <td>${batches === 0 ? '—' : counterVal}</td>
       <td style="color:var(--accent-bright);">${formatItemCount(counterVal)}</td>
@@ -814,7 +941,9 @@ function addTargetCard(defaultTx = 100, defaultTy = 89, defaultTz = 100) {
         <div class="stats-group" style="margin-top: 12px;">
           <div class="stats-title">Time Estimates</div>
           <div class="stats-row"><span class="label">Payload Building:</span><span class="value">00:01:25</span></div>
-          <div class="stats-row"><span class="label">Acceleration:</span><span class="value accel-time">00:00.0 (0.0s)</span></div>
+          <div class="stats-row"><span class="label">Arrow Acceleration:</span><span class="value arrow-accel-time">00:00.0 (0.0s)</span></div>
+          <div class="stats-row"><span class="label">Main TNT Acceleration:</span><span class="value main-tnt-accel-time">00:00.0 (0.0s)</span></div>
+          <div class="stats-row"><span class="label">TNT 2 Acceleration:</span><span class="value tnt-2-accel-time">00:00.0 (0.0s)</span></div>
           <div class="stats-row" style="border-top: 1px solid rgba(248,113,113,0.3); margin-top: 4px; padding-top: 4px;">
             <span class="label" style="color:var(--accent-bright);">Total Time:</span>
             <span class="value total-time" style="color:var(--green);">00:00.0</span>
@@ -823,14 +952,18 @@ function addTargetCard(defaultTx = 100, defaultTy = 89, defaultTz = 100) {
       </div>
     </div>
 
-    <div class="grid-2" style="margin-top: 16px;">
+    <div class="grid-3" style="margin-top: 16px;">
       <div>
         <div class="card-title" style="font-size:11px; margin-bottom:6px;">Arrow Acceleration</div>
         <div class="table-wrapper arrow-table"></div>
       </div>
       <div>
-        <div class="card-title" style="font-size:11px; margin-bottom:6px;">TNT Target Setup</div>
+        <div class="card-title" style="font-size:11px; margin-bottom:6px;">Main Acceleration</div>
         <div class="table-wrapper tnt-table"></div>
+      </div>
+      <div>
+        <div class="card-title" style="font-size:11px; margin-bottom:6px;">TNT 2</div>
+        <div class="table-wrapper tnt2-table"></div>
       </div>
     </div>
   `;
@@ -868,23 +1001,20 @@ function computeCard(card) {
   let reqY = parseFloat(card.querySelector('.t-y').value) || 0;
   let reqZ = parseFloat(card.querySelector('.t-z').value) || 0;
 
-  let res = evaluateSolution(reqX, reqZ, ox, oz, tolerance);
+  let res = evaluateSolution(reqX, reqZ, ox, oy, oz, tolerance);
 
-  if (res.isWithinTolerance) {
-    renderResults(card, res, reqX, reqZ, reqY, ox, oy, oz, tolerance, false);
-  } else {
-    const statusEl = card.querySelector('.status-msg');
-    statusEl.className = 'status-msg searching';
-    statusEl.innerHTML = `<div class="spinner"></div><span>Calculating trajectory...</span>`;
+  const statusEl = card.querySelector('.status-msg');
+  statusEl.className = 'status-msg searching';
+  statusEl.innerHTML = `<div class="spinner"></div><span>Aligning arrow under main TNT...</span>`;
 
-    findNearestValidTargetAsync(reqX, reqZ, ox, oz, tolerance, card.abortController.signal, (nearest) => {
-      if (nearest) {
-        renderResults(card, nearest, nearest.targetX, nearest.targetZ, reqY, ox, oy, oz, tolerance, true);
-      } else {
-        renderResults(card, res, reqX, reqZ, reqY, ox, oy, oz, tolerance, false);
-      }
-    });
-  }
+  findBestAlignedTargetAsync(reqX, reqZ, ox, oy, oz, tolerance, card.abortController.signal, (bestAligned) => {
+    if (bestAligned) {
+      const moved = Math.hypot(bestAligned.targetX - reqX, bestAligned.targetZ - reqZ) > 1e-9;
+      renderResults(card, bestAligned, bestAligned.targetX, bestAligned.targetZ, reqY, ox, oy, oz, tolerance, moved);
+    } else {
+      renderResults(card, res, reqX, reqZ, reqY, ox, oy, oz, tolerance, false);
+    }
+  });
 }
 
 function renderResults(card, res, actualX, actualZ, reqY, ox, oy, oz, tolerance, targetAdjusted) {
@@ -904,35 +1034,38 @@ function renderResults(card, res, actualX, actualZ, reqY, ox, oy, oz, tolerance,
   }
 
   card.querySelector('.actual-target-xyz').textContent = `${fmt(actualX)}, ${fmt(reqY, 2)}, ${fmt(actualZ)}`;
-  card.querySelector('.landing-xyz').textContent = `${fmt(res.predicted.x)}, ${fmt(reqY, 2)}, ${fmt(res.predicted.z)}`;
+  card.querySelector('.landing-xyz').textContent = `${fmt(res.predicted.x)}, ${fmt(res.predicted.y, 2)}, ${fmt(res.predicted.z)}`;
   card.querySelector('.center-error').textContent = `${fmt(res.centerError, 4)} blks`;
 
-  // Distance along +X from Cannon Origin
   const deltaX = actualX - ox;
 
   card.querySelector('.arrow-table').innerHTML = tableHTML(arrowVectors, res.arrow?.counts, false, deltaX);
   card.querySelector('.tnt-table').innerHTML = tableHTML(tntVectors, res.stop?.counts, true, deltaX);
+  card.querySelector('.tnt2-table').innerHTML = tableHTMLTNT2(tntVectors, res.stop?.counts, deltaX);
 
-  // Time Estimates Calculation
-  const tntAdjCounts = getAdjustedCounts(tntVectors, res.stop?.counts, true, deltaX);
   const arrowAdjCounts = getAdjustedCounts(arrowVectors, res.arrow?.counts, false, deltaX);
+  const mainTntAdjCounts = getAdjustedCounts(tntVectors, res.stop?.counts, true, deltaX);
+  const tnt2AdjCounts = getAdjustedCounts(tntVectors, res.stop?.counts, true, deltaX);
 
-  // Take maximum count for X axes (indices 0, 1) and Z axes (indices 2, 3)
-  const maxX_TNT = Math.max(tntAdjCounts[0] || 0, tntAdjCounts[1] || 0);
-  const maxZ_TNT = Math.max(tntAdjCounts[2] || 0, tntAdjCounts[3] || 0);
+  const maxAxisBatches = (counts) => Math.max(
+    Math.max(counts[0] || 0, counts[1] || 0),
+    Math.max(counts[2] || 0, counts[3] || 0)
+  );
 
-  const maxX_Arrow = Math.max(arrowAdjCounts[0] || 0, arrowAdjCounts[1] || 0);
-  const maxZ_Arrow = Math.max(arrowAdjCounts[2] || 0, arrowAdjCounts[3] || 0);
+  const arrowMax = maxAxisBatches(arrowAdjCounts);
+  const mainTntMax = maxAxisBatches(mainTntAdjCounts);
+  const tnt2Max = maxAxisBatches(tnt2AdjCounts);
 
-  const maxTNT = Math.max(maxX_TNT, maxZ_TNT);
-  const maxArrow = Math.max(maxX_Arrow, maxZ_Arrow);
+  const arrowAccelSeconds = arrowMax * 0.3;
+  const mainTntAccelSeconds = mainTntMax * 0.3;
+  const tnt2AccelSeconds = tnt2Max * 0.3;
 
-  const totalBatches = maxTNT + maxArrow;
-  const accelSeconds = totalBatches * 0.3;
-  const payloadSeconds = 85; // Fixed 00:01:25
-  const totalSeconds = payloadSeconds + accelSeconds;
+  const payloadSeconds = 85 + 40;
+  const totalSeconds = payloadSeconds + arrowAccelSeconds + mainTntAccelSeconds + tnt2AccelSeconds;
 
-  card.querySelector('.accel-time').textContent = `${formatFormattedTime(accelSeconds)} (${accelSeconds.toFixed(1)}s)`;
+  card.querySelector('.arrow-accel-time').textContent = `${formatFormattedTime(arrowAccelSeconds)} (${arrowAccelSeconds.toFixed(1)}s)`;
+  card.querySelector('.main-tnt-accel-time').textContent = `${formatFormattedTime(mainTntAccelSeconds)} (${mainTntAccelSeconds.toFixed(1)}s)`;
+  card.querySelector('.tnt-2-accel-time').textContent = `${formatFormattedTime(tnt2AccelSeconds)} (${tnt2AccelSeconds.toFixed(1)}s)`;
   card.querySelector('.total-time').textContent = formatFormattedTime(totalSeconds);
 }
 
