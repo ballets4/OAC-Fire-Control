@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@600;700&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #00060E; /* Updated to match the background image color */
+      --bg: #00060E;
       --panel: rgba(16, 23, 32, 0.75);
       --panel-border: rgba(248, 113, 113, 0.3);
       --panel-glow: rgba(248, 113, 113, 0.08);
@@ -47,9 +47,9 @@
       position: fixed;
       top: 50%;
       left: 50%;
-      transform: translate(-50%, -50%); /* Centers the smaller video */
-      width: 60vw;                      /* Reduced size (adjust percentage as needed) */
-      height: 60vh;                     /* Reduced size */
+      transform: translate(-50%, -50%);
+      width: 60vw;
+      height: 60vh;
       object-fit: contain;
       pointer-events: none;
       z-index: 0;
@@ -103,7 +103,6 @@
       text-shadow: 0 0 12px var(--accent);
     }
 
-    /* Panorama Toggle Button Styling & Animations */
     .btn-panorama {
       background: rgba(248, 113, 113, 0.08);
       border: 1px solid var(--panel-border);
@@ -158,41 +157,6 @@
       background: rgba(248, 113, 113, 0.15);
     }
 
-    .status-badge {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      color: var(--accent);
-      background: rgba(248, 113, 113, 0.05);
-      border: 1px solid var(--panel-border);
-      padding: 8px 18px;
-      border-radius: 20px;
-      box-shadow: 0 0 15px var(--panel-glow);
-      animation: borderPulse 3s infinite alternate;
-    }
-
-    @keyframes borderPulse {
-      0% { border-color: rgba(248, 113, 113, 0.2); box-shadow: 0 0 10px rgba(248, 113, 113, 0.1); }
-      100% { border-color: rgba(248, 113, 113, 0.5); box-shadow: 0 0 20px rgba(248, 113, 113, 0.25); }
-    }
-
-    .status-dot {
-      width: 8px; height: 8px;
-      background: var(--accent);
-      border-radius: 50%;
-      box-shadow: 0 0 10px var(--accent);
-      animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 0.4; transform: scale(0.85); }
-      50% { opacity: 1; transform: scale(1.2); }
-    }
-
     .container {
       position: relative;
       z-index: 10;
@@ -242,7 +206,6 @@
     }
 
     .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 
     .field { display: flex; flex-direction: column; gap: 6px; }
     .field label {
@@ -460,13 +423,8 @@
       transform: translateY(0);
     }
 
-    .stats-group {
-      margin-bottom: 12px;
-    }
-
-    .stats-group:last-child {
-      margin-bottom: 0;
-    }
+    .stats-group { margin-bottom: 12px; }
+    .stats-group:last-child { margin-bottom: 0; }
 
     .stats-title {
       font-family: 'Orbitron', sans-serif;
@@ -489,7 +447,7 @@
     .stats-row .value { color: #fff; font-weight: 700; }
 
     @media (max-width: 650px) {
-      .grid-3, .grid-2, .badge-bar { grid-template-columns: 1fr; }
+      .grid-3, .badge-bar { grid-template-columns: 1fr; }
       .header-left { flex-direction: column; align-items: flex-start; gap: 8px; }
     }
   </style>
@@ -500,12 +458,12 @@
 
 <div class="top-header">
   <div class="header-left">
-  <h1>OAC FIRE CONTROL</h1>
-  <button class="btn-panorama" id="panorama-toggle-btn" onclick="togglePanorama()">
-    <span class="pano-icon">🌐</span>
-    <span id="pano-btn-text">Panorama: ON</span>
-  </button>
-</div>
+    <h1>OAC FIRE CONTROL</h1>
+    <button class="btn-panorama" id="panorama-toggle-btn" onclick="togglePanorama()">
+      <span class="pano-icon">🌐</span>
+      <span id="pano-btn-text">Panorama: ON</span>
+    </button>
+  </div>
 </div>
 
 <div class="container">
@@ -517,7 +475,7 @@
     <div class="grid-3" style="margin-bottom: 16px;">
       <div class="field"><label>Origin X</label><input type="number" id="originX" value="12" step="any"></div>
       <div class="field"><label>Origin Y</label><input type="number" id="originY" value="89" step="any"></div>
-      <div class="field"><label>Origin Z</label><input type="number" id="originZ" value="-7" step="any"></div>
+      <div class="field"><label>Origin Z</label><input type="number" id="originZ" value="--7" step="any"></div>
     </div>
 
     <div class="badge-box" style="margin-bottom: 16px;">
@@ -558,7 +516,6 @@ function togglePanorama() {
   }
 }
 
-// Cannon Engine Logic
 let targetCounter = 0;
 
 const arrowVectors = [
@@ -667,12 +624,17 @@ function axesFor(v) {
 }
 
 function calculateExtraZBatches(arrowCounts, distX, distZ) {
-  const isPlusXOnly = arrowCounts[1] > 0 && arrowCounts[0] === 0;
-  const isPlusZOnly = arrowCounts[2] > 0 && arrowCounts[3] === 0;
+  // Check that the firing direction is STRICTLY +X AND +Z ONLY
+  const isPlusXOnly = (arrowCounts[1] > 0) && (arrowCounts[0] === 0);
+  const isPlusZOnly = (arrowCounts[2] > 0) && (arrowCounts[3] === 0);
 
   if (isPlusXOnly && isPlusZOnly) {
-    const ratio = distZ > 0 ? distX / distZ : 0;
-    return Math.floor(ratio / 2);
+    const diff = distX - distZ;
+    // Only apply extra Z batches if difference is 50 or more
+    if (diff >= 50) {
+      // Scales up continuously with increasing distance difference beyond 50
+      return 1 + Math.floor((diff - 50) / 100);
+    }
   }
   return 0;
 }
