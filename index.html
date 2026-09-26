@@ -770,17 +770,14 @@ function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, distX = 0, dis
   const rows = vectors.map((v, i) => {
     let batches = safeCounts[i] || 0;
 
-    // Apply extra Z batch to batch count
-    if (v.name === '+Z') {
-      batches += extraZBatches;
-    }
-
     const totalTnt = batches * 10;
     const sub = isTnt ? 3 : 2;
 
     // Compute actual counter and item values off the updated batch total
     let counterVal = batches <= 0 ? 0 : Math.max(0, batches - sub);
-
+    if (v.name === '+Z') {
+      counterVal += extraZBatches;
+    }
     return `<tr>
       <td>${v.name}</td>
       <td>${batches}${v.name === '+Z' && extraZBatches > 0 ? ` <span style="color:var(--orange); font-size:10px;">(+${extraZBatches})</span>` : ''}</td>
