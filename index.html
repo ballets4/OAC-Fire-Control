@@ -636,7 +636,7 @@ function calculateExtraZBatches(arrowCounts, distX, distZ) {
     // 2. Must be at least 10% of the total target scale (diff / maxDist >= 0.10)
     if (diff >= 50 && maxDist > 0 && (diff / maxDist) >= 0.10) {
       // Scales up continuously with increasing distance difference
-      return 2
+      return 1
     }
   }
   return 0;
