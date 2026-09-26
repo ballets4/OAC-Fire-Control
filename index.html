@@ -475,7 +475,7 @@
     <div class="grid-3" style="margin-bottom: 16px;">
       <div class="field"><label>Origin X</label><input type="number" id="originX" value="12" step="any"></div>
       <div class="field"><label>Origin Y</label><input type="number" id="originY" value="89" step="any"></div>
-      <div class="field"><label>Origin Z</label><input type="number" id="originZ" value="--7" step="any"></div>
+      <div class="field"><label>Origin Z</label><input type="number" id="originZ" value="-7" step="any"></div>
     </div>
 
     <div class="badge-box" style="margin-bottom: 16px;">
@@ -636,7 +636,7 @@ function calculateExtraZBatches(arrowCounts, distX, distZ) {
     // 2. Must be at least 10% of the total target scale (diff / maxDist >= 0.10)
     if (diff >= 50 && maxDist > 0 && (diff / maxDist) >= 0.10) {
       // Scales up continuously with increasing distance difference
-      return 1 + Math.floor((diff - 50) / 100);
+      return 1
     }
   }
   return 0;
