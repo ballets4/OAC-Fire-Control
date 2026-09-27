@@ -767,6 +767,12 @@ function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, distX = 0, dis
   const safeCounts = counts || [0, 0, 0, 0];
   const extraZBatches = isTnt ? 0 : calculateExtraZBatches(safeCounts, distX, distZ);
 
+  const isPlusXActive = (safeCounts[1] || 0) > 0;
+  const isMinusXActive = (safeCounts[0] || 0) > 0;
+  const isPlusZActive = (safeCounts[2] || 0) > 0;
+  const isMinusZActive = (safeCounts[3] || 0) > 0;
+  const isPlusXMinusZOnly = !isTnt && isPlusXActive && isMinusZActive && !isMinusXActive && !isPlusZActive;
+
   const rows = vectors.map((v, i) => {
     let batches = safeCounts[i] || 0;
 
@@ -780,7 +786,13 @@ function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, distX = 0, dis
 
     // Compute counter and item values off the updated batch total
     let counterVal = batches <= 0 ? 0 : Math.max(0, batches - sub);
-    
+
+    // If the arrow is firing strictly +X and -Z, the +X row loses 1 extra
+    // from its counter/items on top of the normal subtraction.
+    if (isPlusXMinusZOnly && v.name === '-Z') {
+      counterVal = Math.max(0, counterVal + 1);
+    }
+
     return `<tr>
       <td>${v.name}</td>
       <td>${batches + (v.name === '+Z' && extraZBatches > 0 ? 1 : 0)}${v.name === '+Z' && extraZBatches > 0 ? ` <span style="color:var(--orange); font-size:10px;">(+${extraZBatches})</span>` : ''}</td>
