@@ -790,7 +790,7 @@ function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, distX = 0, dis
     // If the arrow is firing strictly +X and -Z, the +X row loses 1 extra
     // from its counter/items on top of the normal subtraction.
     if (isPlusXMinusZOnly && v.name === '-Z') {
-      counterVal = Math.max(0, counterVal + 1);
+      counterVal = Math.max(0, counterVal + 2);
     }
 
     return `<tr>
