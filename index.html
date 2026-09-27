@@ -638,7 +638,7 @@ function calculateExtraZBatches(arrowCounts, distX, distZ) {
       // Scales up with the size of the gap between X and Z: every extra 200
       // blocks of difference adds one more batch (e.g. 100 diff -> +1,
       // 500 diff -> +3). Equal distances (diff <= 0) stay at 0.
-      return Math.ceil(diff / 100);
+      return Math.ceil(diff / 200);
     }
   }
   return 0;
