@@ -635,8 +635,10 @@ function calculateExtraZBatches(arrowCounts, distX, distZ) {
     // 1. Must be at least a 50 block difference
     // 2. Must be at least 10% of the total target scale (diff / maxDist >= 0.10)
     if (diff >= 50 && maxDist > 0 && (diff / maxDist) >= 0.10) {
-      // Scales up continuously with increasing distance difference
-      return 1
+      // Scales up with the size of the gap between X and Z: every extra 200
+      // blocks of difference adds one more batch (e.g. 100 diff -> +1,
+      // 500 diff -> +3). Equal distances (diff <= 0) stay at 0.
+      return Math.ceil(diff / 200);
     }
   }
   return 0;
@@ -790,7 +792,7 @@ function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, distX = 0, dis
     // If the arrow is firing strictly +X and -Z, the +X row loses 1 extra
     // from its counter/items on top of the normal subtraction.
     if (isPlusXMinusZOnly && v.name === '+X') {
-      counterVal = Math.max(0, counterVal - 4);
+      counterVal = Math.max(0, counterVal - 1);
     }
 
     return `<tr>
