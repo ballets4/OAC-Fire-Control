@@ -800,7 +800,7 @@ function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, distX = 0, dis
       <td>${batches + (v.name === '+Z' && extraZBatches > 0 ? 1 : 0)}${v.name === '+Z' && extraZBatches > 0 ? ` <span style="color:var(--orange); font-size:10px;">(+${extraZBatches})</span>` : ''}</td>
       <td>${totalTnt}</td>
       <td>${batches === 0 ? '—' : counterVal}</td>
-      <td style="color:var(--accent-bright);">${formatItemCount(counterVal + (v.name === '+Z' ? extraZBatches : 0))}</td>
+      <td style="color:var(--accent-bright);">${formatItemCount(counterVal + (v.name === '+Z' && extraZBatches > 0 ? 1 : 0))}</td>
     </tr>`;
   }).join('');
 
@@ -970,7 +970,103 @@ function computeCard(card) {
     card.abortController.abort();
   }
   card.abortController = new AbortController();
+
+  const ox = parseFloat(document.getElementById('originX').value) || 0;
+  const oy = parseFloat(document.getElementById('originY').value) || 0;
+  const oz = parseFloat(document.getElementById('originZ').value) || 0;
+
+  const tolerance = parseFloat(document.getElementById('tolerance').value) || 0.05;
+
+  let reqX = parseFloat(card.querySelector('.t-x').value) || 0;
+  let reqY = parseFloat(card.querySelector('.t-y').value) || 0;
+  let reqZ = parseFloat(card.querySelector('.t-z').value) || 0;
+
+  let res = evaluateSolution(reqX, reqZ, ox, oy, oz, tolerance);
+
+  const statusEl = card.querySelector('.status-msg');
+  statusEl.className = 'status-msg searching';
+  statusEl.innerHTML = `<div class="spinner"></div><span>Aligning arrow under main TNT...</span>`;
+
+  findBestAlignedTargetAsync(reqX, reqZ, ox, oy, oz, tolerance, card.abortController.signal, (bestAligned) => {
+    if (bestAligned) {
+      const moved = Math.hypot(bestAligned.targetX - reqX, bestAligned.targetZ - reqZ) > 1e-9;
+      renderResults(card, bestAligned, bestAligned.targetX, bestAligned.targetZ, reqY, ox, oy, oz, tolerance, moved);
+    } else {
+      renderResults(card, res, reqX, reqZ, reqY, ox, oy, oz, tolerance, false);
+    }
+  });
 }
+
+function renderResults(card, res, actualX, actualZ, reqY, ox, oy, oz, tolerance, targetAdjusted) {
+  const verticalSame = Math.abs(reqY - oy) < 1e-9;
+  const statusEl = card.querySelector('.status-msg');
+
+  if (res.isWithinTolerance) {
+    statusEl.className = verticalSame ? 'status-msg ok' : 'status-msg approx';
+    let msg = targetAdjusted 
+      ? `OPTIMIZED TRAJECTORY: Shifted target to (X: ${fmt(actualX)}, Z: ${fmt(actualZ)}). `
+      : `SOLUTION FOUND: `;
+    msg += `Margin error ${fmt(res.centerError, 4)} blocks (Tolerance: ${fmt(tolerance)}).`;
+    statusEl.textContent = msg;
+  } else {
+    statusEl.className = 'status-msg no';
+    statusEl.textContent = `OUT OF RANGE: Error ${fmt(res.centerError, 4)} exceeds ${fmt(tolerance)} limit.`;
+  }
+
+  card.querySelector('.actual-target-xyz').textContent = `${fmt(actualX)}, ${fmt(reqY, 2)}, ${fmt(actualZ)}`;
+  card.querySelector('.landing-xyz').textContent = `${fmt(res.predicted.x)}, ${fmt(res.predicted.y, 2)}, ${fmt(res.predicted.z)}`;
+  card.querySelector('.center-error').textContent = `${fmt(res.centerError, 4)} blks`;
+
+  const initialArrowOffsetX = 1.26;
+  const initialArrowOffsetZ = 0.74;
+  const distX = actualX - (ox + initialArrowOffsetX);
+  const distZ = actualZ - (oz + initialArrowOffsetZ);
+
+  card.querySelector('.arrow-table').innerHTML = tableHTML(arrowVectors, res.arrow?.counts, false, distX, distZ);
+  card.querySelector('.tnt-table').innerHTML = tableHTML(tntVectors, res.stop?.counts, true, distX, distZ);
+  card.querySelector('.tnt2-table').innerHTML = tableHTMLTNT2(tntVectors, res.stop?.counts);
+
+  const arrowAdjCounts = getAdjustedCounts(arrowVectors, res.arrow?.counts, false, distX, distZ);
+  const mainTntAdjCounts = getAdjustedCounts(tntVectors, res.stop?.counts, true, distX, distZ);
+  const tnt2AdjCounts = getAdjustedCounts(tntVectors, res.stop?.counts, true, distX, distZ);
+
+  const maxAxisBatches = (counts) => Math.max(
+    Math.max(counts[0] || 0, counts[1] || 0),
+    Math.max(counts[2] || 0, counts[3] || 0)
+  );
+
+  const arrowMax = maxAxisBatches(arrowAdjCounts);
+  const mainTntMax = maxAxisBatches(mainTntAdjCounts);
+  const tnt2Max = maxAxisBatches(tnt2AdjCounts);
+
+  const arrowAccelSeconds = arrowMax * 0.3;
+  const mainTntAccelSeconds = mainTntMax * 0.3;
+  const tnt2AccelSeconds = tnt2Max * 0.3;
+
+  const payloadSeconds = 85 + 40;
+  const totalSeconds = payloadSeconds + arrowAccelSeconds + mainTntAccelSeconds + tnt2AccelSeconds;
+
+  card.querySelector('.arrow-accel-time').textContent = `${formatFormattedTime(arrowAccelSeconds)} (${arrowAccelSeconds.toFixed(1)}s)`;
+  card.querySelector('.main-tnt-accel-time').textContent = `${formatFormattedTime(mainTntAccelSeconds)} (${mainTntAccelSeconds.toFixed(1)}s)`;
+  card.querySelector('.tnt-2-accel-time').textContent = `${formatFormattedTime(tnt2AccelSeconds)} (${tnt2AccelSeconds.toFixed(1)}s)`;
+  card.querySelector('.total-time').textContent = formatFormattedTime(totalSeconds);
+}
+
+const updateAllDebounced = debounce(() => {
+  updateNetherOrigin();
+  document.querySelectorAll('#targets-container .card').forEach(computeCard);
+}, 150);
+
+['originX', 'originY', 'originZ', 'tolerance'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateAllDebounced);
+});
+
+document.getElementById('add-target-btn').addEventListener('click', () => addTargetCard());
+
+// Initial setup
+updateNetherOrigin();
+addTargetCard(100, 89, 100);
 </script>
+
 </body>
 </html>
