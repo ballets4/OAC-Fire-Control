@@ -795,12 +795,17 @@ function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, distX = 0, dis
       counterVal = Math.max(0, counterVal - 1);
     }
 
+    // Show item count ONLY when NOT firing TNT and batches > 0
+    const itemsDisplay = isTnt || batches === 0 
+      ? '—' 
+      : formatItemCount(counterVal + (v.name === '+Z' ? extraZBatches : 0));
+
     return `<tr>
       <td>${v.name}</td>
-      <td>${batches + (v.name === '+Z' && extraZBatches > 0 ? 1 : 0)}${v.name === '+Z' && extraZBatches > 0 ? ` <span style="color:var(--orange); font-size:10px;">(+${extraZBatches})</span>` : ''}</td>
+      <td>${batches}${v.name === '+Z' && extraZBatches > 0 ? ` <span style="color:var(--orange); font-size:10px;">(+${extraZBatches})</span>` : ''}</td>
       <td>${totalTnt}</td>
       <td>${batches === 0 ? '—' : counterVal}</td>
-      <td style="color:var(--accent-bright);">${formatItemCount(counterVal + (v.name === '+Z' ? extraZBatches))}</td>
+      <td style="color:var(--accent-bright);">${itemsDisplay}</td>
     </tr>`;
   }).join('');
 
