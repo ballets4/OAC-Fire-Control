@@ -629,16 +629,17 @@ function calculateExtraZBatches(arrowCounts, distX, distZ) {
   const isPlusZOnly = (arrowCounts[2] > 0) && (arrowCounts[3] === 0);
 
   if (isPlusXOnly && isPlusZOnly) {
-    const diff = distX - distZ;
-    const maxDist = Math.max(distX, distZ);
+    const absX = Math.abs(distX);
+    const absZ = Math.abs(distZ);
 
-    // 1. Must be at least a 50 block difference
-    // 2. Must be at least 10% of the total target scale (diff / maxDist >= 0.10)
-    if (diff >= 50 && maxDist > 0 && (diff / maxDist) >= 0.10) {
-      // Scales up with the size of the gap between X and Z: every extra 200
-      // blocks of difference adds one more batch (e.g. 100 diff -> +1,
-      // 500 diff -> +3). Equal distances (diff <= 0) stay at 0.
-      return Math.ceil(diff / 60);
+    // Calculate trajectory bias toward the X-axis (0 when Z >= X, grows higher as X dominates)
+    const xDominanceRatio = (absX - absZ) / (absX + absZ);
+
+    // Require X distance to be greater than Z distance with a minimum threshold
+    if (absX > absZ && absX >= 50 && xDominanceRatio > 0.05) {
+      // Scales with absolute X distance multiplied by the trajectory dominance factor
+      // More trajectory on X = higher xDominanceRatio = more batches added
+      return Math.ceil((absX * xDominanceRatio) / 60);
     }
   }
   return 0;
