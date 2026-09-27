@@ -800,7 +800,7 @@ function tableHTML(vectors, counts = [0, 0, 0, 0], isTnt = false, distX = 0, dis
       <td>${batches + (v.name === '+Z' && extraZBatches > 0 ? 1 : 0)}${v.name === '+Z' && extraZBatches > 0 ? ` <span style="color:var(--orange); font-size:10px;">(+${extraZBatches})</span>` : ''}</td>
       <td>${totalTnt}</td>
       <td>${batches === 0 ? '—' : counterVal}</td>
-      <td style="color:var(--accent-bright);">${formatItemCount(counterVal + (v.name === '+Z' ? extraZBatches : 0))}</td>
+      <td style="color:var(--accent-bright);">${formatItemCount(counterVal + (v.name === '+Z' ? extraZBatches))}</td>
     </tr>`;
   }).join('');
 
